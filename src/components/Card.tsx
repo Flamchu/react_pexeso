@@ -40,7 +40,7 @@ export function Card({ card, selected, onSelect, mode }: CardProps) {
 	};
 
 	return (
-		<button className={`w-16 h-16 bg-white border rounded shadow flex items-center justify-center transition-transform duration-500 ${isRevealed ? "cursor-default rotate-y-180" : "hover:scale-105"}`} onClick={() => onSelect(card)} disabled={isRevealed}>
+		<button className={`w-16 h-16 bg-white border rounded shadow flex items-center justify-center transition-transform duration-500 ${isRevealed ? "cursor-default rotate-[360deg]" : "hover:scale-105"}`} onClick={() => onSelect(card)} disabled={isRevealed}>
 			{renderContent()}
 		</button>
 	);
