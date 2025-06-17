@@ -58,19 +58,35 @@ export default function App() {
 		newGame();
 	}, [newGame]);
 
+	const leaderboardKey = `leaderboard-${mode}-${difficulty}`;
+
 	useEffect(() => {
 		if (gameComplete && timerRef.current) {
 			clearInterval(timerRef.current);
-			const stored = localStorage.getItem(`bestTime-${mode}-${difficulty}`);
-			const best = stored ? parseInt(stored, 10) : null;
-			if (!best || time < best) {
-				setBestTime(time);
-				localStorage.setItem(`bestTime-${mode}-${difficulty}`, time.toString());
-			} else {
-				setBestTime(best);
-			}
+
+			// get current leaderboard from localStorage
+			const stored = localStorage.getItem(leaderboardKey);
+			let leaderboard: number[] = stored ? JSON.parse(stored) : [];
+
+			// add current time and sort
+			leaderboard.push(time);
+			leaderboard = leaderboard.filter((t) => typeof t === "number" && t > 0);
+			leaderboard.sort((a, b) => a - b);
+
+			// keep only top 5
+			leaderboard = leaderboard.slice(0, 5);
+
+			// save back to localStorage
+			localStorage.setItem(leaderboardKey, JSON.stringify(leaderboard));
+
+			// set bestTime (first in leaderboard)
+			setBestTime(leaderboard[0]);
 		}
-	}, [gameComplete, time, mode, difficulty]);
+	}, [gameComplete, time, mode, difficulty, leaderboardKey]);
+
+	// retrieve leaderboard from localStorage for display
+	const storedLeaderboard = localStorage.getItem(leaderboardKey);
+	const leaderboard: number[] = storedLeaderboard ? JSON.parse(storedLeaderboard) : [];
 
 	return (
 		<div className="min-h-screen bg-gray-100 flex flex-col items-center justify-start p-4">
@@ -82,6 +98,17 @@ export default function App() {
 				))}
 			</div>
 			{gameComplete && <p className="mt-6 text-green-600 font-semibold">🎉 Hra dokončena za {time} sekund!</p>}
+			<div className="mt-6">
+				<h2 className="font-bold mb-2">
+					🏆 Nejlepší časy ({mode}, {difficulty}):
+				</h2>
+				<ol className="list-decimal ml-6">
+					{leaderboard.length === 0 && <li>Žádné záznamy</li>}
+					{leaderboard.map((t, i) => (
+						<li key={i}>{t} sekund</li>
+					))}
+				</ol>
+			</div>
 		</div>
 	);
 }
