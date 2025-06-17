@@ -1,26 +1,33 @@
 import type { CardType, GameMode } from "../App";
 
-// generate pairs of values based on mode
-function generateValues(mode: GameMode): string[] {
-	if (mode === "numbers") return Array.from({ length: 8 }, (_, i) => (i + 1).toString());
-	if (mode === "colors") return ["#ff5733", "#33c1ff", "#85ff33", "#ff33a6", "#a633ff", "#ffc733", "#33ffbd", "#ff3333"];
-	if (mode === "shapes") return ["triangle", "square", "pentagon", "hexagon", "circle", "star", "cross", "rhombus"];
+function generateValues(mode: GameMode, count: number): string[] {
+	if (mode === "numbers") {
+		return Array.from({ length: count }, (_, i) => (i + 1).toString());
+	}
+
+	if (mode === "colors") {
+		const base = ["#ff5733", "#33c1ff", "#85ff33", "#ff33a6", "#a633ff", "#ffc733", "#33ffbd", "#ff3333", "#3366ff", "#cc66ff", "#66ff66", "#ff9966", "#66ffff", "#ffcc00", "#cc0033", "#9999ff"];
+		return base.slice(0, count);
+	}
+
+	if (mode === "shapes") {
+		const shapes = ["triangle", "square", "pentagon", "hexagon", "circle", "star", "cross", "rhombus", "trapezoid", "oval", "heart", "moon", "arrow", "parallelogram", "crescent", "wave"];
+		return shapes.slice(0, count);
+	}
+
 	return [];
 }
 
-// generate shuffled deck with pairs
-export function generateDeck(mode: GameMode): CardType[] {
-	const baseValues = generateValues(mode);
-	const pairs = [...baseValues, ...baseValues];
+export function generateDeck(mode: GameMode, count: number): CardType[] {
+	const baseValues = generateValues(mode, count);
+	const values = [...baseValues, ...baseValues];
 
-	// shuffle values
-	for (let i = pairs.length - 1; i > 0; i--) {
+	for (let i = values.length - 1; i > 0; i--) {
 		const j = Math.floor(Math.random() * (i + 1));
-		[pairs[i], pairs[j]] = [pairs[j], pairs[i]];
+		[values[i], values[j]] = [values[j], values[i]];
 	}
 
-	// map to card objects
-	return pairs.map((value, index) => ({
+	return values.map((value, index) => ({
 		id: index,
 		value,
 		matched: false,
