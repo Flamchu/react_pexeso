@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Card } from "./components/Card";
 import { GameControls } from "./components/GameControls";
 import { generateDeck } from "./utils/deck";
@@ -10,66 +10,105 @@ export type CardType = {
 };
 
 export type GameMode = "numbers" | "colors" | "shapes";
+export type Difficulty = "easy" | "medium" | "hard";
 
 export default function App() {
-	// current deck of cards
 	const [deck, setDeck] = useState<CardType[]>([]);
-	// cards selected by user
 	const [selected, setSelected] = useState<CardType[]>([]);
-	// game mode selected by user
 	const [mode, setMode] = useState<GameMode>("numbers");
-	// number of attempts
+	const [difficulty, setDifficulty] = useState<Difficulty>("easy");
 	const [attempts, setAttempts] = useState(0);
-	// pairs found
 	const [pairsLeft, setPairsLeft] = useState(0);
+	const [time, setTime] = useState(0);
+	const [bestTime, setBestTime] = useState<number | null>(null);
+	const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+	const gameComplete = pairsLeft === 0;
 
-	// shuffle and start new game
+	const pairCount = difficulty === "easy" ? 8 : difficulty === "medium" ? 12 : 16;
+
 	const newGame = useCallback(() => {
-		const newDeck = generateDeck(mode);
+		const newDeck = generateDeck(mode, pairCount);
 		setDeck(newDeck);
 		setSelected([]);
 		setAttempts(0);
 		setPairsLeft(newDeck.length / 2);
-	}, [mode]);
+		setTime(0);
+		if (timerRef.current) clearInterval(timerRef.current);
+		timerRef.current = setInterval(() => setTime((t) => t + 1), 1000);
+	}, [mode, pairCount]);
 
-	// handle card click
 	const handleSelect = (card: CardType) => {
-		// ignore already matched or already selected card
 		if (selected.length === 2 || selected.find((c) => c.id === card.id) || card.matched) return;
 		const newSelected = [...selected, card];
 		setSelected(newSelected);
-
-		// check if two cards selected
 		if (newSelected.length === 2) {
 			setAttempts((prev) => prev + 1);
 			const [a, b] = newSelected;
 			if (a.value === b.value) {
-				// update matched cards
-				setDeck((prevDeck) => prevDeck.map((c) => (c.value === a.value ? { ...c, matched: true } : c)));
+				setDeck((prev) => prev.map((c) => (c.value === a.value ? { ...c, matched: true } : c)));
 				setPairsLeft((prev) => prev - 1);
 				setSelected([]);
 			} else {
-				// flip cards back after timeout
 				setTimeout(() => setSelected([]), 1000);
 			}
 		}
 	};
 
-	// start game on initial load or mode change
 	useEffect(() => {
 		newGame();
 	}, [newGame]);
 
+	const leaderboardKey = `leaderboard-${mode}-${difficulty}`;
+
+	useEffect(() => {
+		if (gameComplete && timerRef.current) {
+			clearInterval(timerRef.current);
+
+			// get current leaderboard from localStorage
+			const stored = localStorage.getItem(leaderboardKey);
+			let leaderboard: number[] = stored ? JSON.parse(stored) : [];
+
+			// add current time and sort
+			leaderboard.push(time);
+			leaderboard = leaderboard.filter((t) => typeof t === "number" && t > 0);
+			leaderboard.sort((a, b) => a - b);
+
+			// keep only top 5
+			leaderboard = leaderboard.slice(0, 5);
+
+			// save back to localStorage
+			localStorage.setItem(leaderboardKey, JSON.stringify(leaderboard));
+
+			// set bestTime (first in leaderboard)
+			setBestTime(leaderboard[0]);
+		}
+	}, [gameComplete, time, mode, difficulty, leaderboardKey]);
+
+	// retrieve leaderboard from localStorage for display
+	const storedLeaderboard = localStorage.getItem(leaderboardKey);
+	const leaderboard: number[] = storedLeaderboard ? JSON.parse(storedLeaderboard) : [];
+
 	return (
 		<div className="min-h-screen bg-gray-100 flex flex-col items-center justify-start p-4">
 			<h1 className="text-3xl font-bold mb-4">Logické pexeso</h1>
-			<GameControls onNewGame={newGame} mode={mode} setMode={setMode} attempts={attempts} pairsLeft={pairsLeft} />
-			<div className="grid grid-cols-4 gap-4 mt-4">
+			<GameControls onNewGame={newGame} mode={mode} setMode={setMode} attempts={attempts} pairsLeft={pairsLeft} time={time} bestTime={bestTime} difficulty={difficulty} setDifficulty={setDifficulty} />
+			<div className={`grid gap-4 mt-4 ${pairCount <= 8 ? "grid-cols-4" : pairCount <= 12 ? "grid-cols-6" : "grid-cols-8"}`}>
 				{deck.map((card) => (
 					<Card key={card.id} card={card} selected={selected.some((c) => c.id === card.id)} onSelect={handleSelect} mode={mode} />
 				))}
 			</div>
-			{pairsLeft === 0 && <p className="mt-6 text-green-600 font-semibold">🎉 Hra dokončena!</p>}
+			{gameComplete && <p className="mt-6 text-green-600 font-semibold">🎉 Hra dokončena za {time} sekund!</p>}
+			<div className="mt-6">
+				<h2 className="font-bold mb-2">
+					🏆 Nejlepší časy ({mode}, {difficulty}):
+				</h2>
+				<ol className="list-decimal ml-6">
+					{leaderboard.length === 0 && <li>Žádné záznamy</li>}
+					{leaderboard.map((t, i) => (
+						<li key={i}>{t} sekund</li>
+					))}
+				</ol>
+			</div>
 		</div>
 	);
 }
